@@ -1,11 +1,10 @@
-#include "general.h"
-#include "timing_stm32.h"
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/stm32/timer.h>
-
-#include <libopencm3/stm32/rcc.h> // peripheral clocks activeren
+#include <libopencm3/stm32/rcc.h>
 #include <libopencm3/stm32/dma.h>
 
+#include "general.h"
+#include "timing_stm32.h"
 #include "hw_cfg_BluePill.h"
 #include "SWIM.h"
 
@@ -90,7 +89,7 @@ static void SWIM_CLR(void)
 static void SWIM_IN_TIMER_INIT(void) {
   rcc_periph_clock_enable(RCC_DMA1);
   rcc_periph_clock_enable(RCC_TIM4);
-  // original code doet hier DMA_DeInit, dat is niet enkel disable..
+  // original code doet hier DMA_DeInit
   dma_disable_channel(DMA1, SWIM_IN_TIMER_RISE_DMA);
   DMA1_CCR(SWIM_IN_TIMER_RISE_DMA) = 0;
   DMA1_IFCR |= DMA_IFCR_CIF(SWIM_IN_TIMER_RISE_DMA); // clear interrupts
@@ -153,7 +152,6 @@ static void SWIM_IN_TIMER_RISE_DMA_INIT (uint16_t len, uint32_t address)
                                             while(!SWIM_IN_TIMER_RISE_DMA_READY() && --dly);\
                                             SWIM_IN_TIMER_RISE_DMA_RESET();\
                                           }while(0)
-
 
 static void SWIM_OUT_TIMER_INIT(uint8_t dmaChannel, uint8_t polarity)
 {

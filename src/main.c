@@ -7,7 +7,6 @@
 #include <libopencm3/stm32/usart.h>
 #include <libopencm3/usb/usbd.h>
 
-
 #include "SWIM.h"
 #include <timing_stm32.h>
 
@@ -50,11 +49,10 @@
 #define STLINK_SWIM_NO_RESPONSE 0x04 // Target did not respond. SWIM not active?
 #define STLINK_SWIM_BAD_STATE   0x05 // ??
 
-// hier moeten we het stlink protocol afhandelen
+// for handling the stlink protocol
 #define STLINK_STATE_CMD    0
 #define STLINK_STATE_READ   1
 #define STLINK_STATE_WRITE  2
-// nog meer nodig voor state : read_ptr, write_ptr etc
 
 typedef struct {
   uint8_t state;
@@ -64,11 +62,7 @@ typedef struct {
   uint32_t address;
 } stlinkStatus_t;
 static stlinkStatus_t stlinkStatus;
-/*
-static uint8_t stlink_state = STLINK_STATE_CMD;
-static uint8_t stlink_mode = STLINK_DEV_DFU_MODE;
-static uint8_t swimcsr_fake = 0x2;
-*/
+
 static uint8_t epBuffer[64];
 static uint8_t swimBuffer[SWIM_BUFFERSIZE];
 
@@ -156,7 +150,7 @@ static const char *usb_strings[] = {
 /* Buffer to be used for control requests. */
 uint8_t usbd_control_buffer[128];
 
-// vgl BMP
+// like BMP
 static void platform_init (void)
 {
   // clock setup
@@ -252,7 +246,7 @@ static void stlink_data_rx_cb(usbd_device *usbd_dev, uint8_t ep)
         case STLINK_GET_CURRENT_MODE :
           memset(epBuffer,0,2);
           epBuffer[0] = stlinkStatus.mode;
-          epBuffer[1] = 1; // TODO : wat moet hier komen??
+          epBuffer[1] = 1; // TODO : what's this byte?
           usbd_ep_write_packet(usbd_dev, 0x81, epBuffer, 2);
           break;
         case STLINK_SWIM_COMMAND :
@@ -260,34 +254,32 @@ static void stlink_data_rx_cb(usbd_device *usbd_dev, uint8_t ep)
             case STLINK_SWIM_ENTER :
               stlinkStatus.mode = STLINK_DEV_SWIM_MODE;
               swim_init(true);
-              gpio_set(GPIOC, GPIO13); // TODO REMOVE led off as indication for test
               break;
             case STLINK_SWIM_EXIT :
               swim_exit();
               break;
             case STLINK_SWIM_READ_CAP :
-              // voorlopig ignore, moet 8 bytes terugsturen
+              // ignore for now, need to send 8 bytes, that's all i know
               memset(epBuffer,0,8);
               usbd_ep_write_packet(usbd_dev, 0x81, epBuffer, 8);
               break;
             case STLINK_SWIM_SPEED :
               swim_setHighSpeed(epBuffer[2] != 0);
-              // voorlopig ignore
               break;
             case STLINK_SWIM_ENTER_SEQ :
               swim_doEntrySequence();
               break;
             case STLINK_SWIM_GEN_RST : 
-              swim_srst(); // swim command
+              swim_srst();
               break;
             case STLINK_SWIM_RESET : 
-              swim_commsReset(); // 128swim clocks (16us) low on RST
+              swim_commsReset();
               break;
             case STLINK_SWIM_ASSERT_RESET :
-              swim_assertReset(); // RST low
+              swim_assertReset();
               break;
             case STLINK_SWIM_DEASSERT_RESET :
-              swim_deassertReset(); // RST high
+              swim_deassertReset();
               break;
             case STLINK_SWIM_READSTATUS : {
               swimStatusAsync_t swimStatus;
@@ -310,14 +302,11 @@ static void stlink_data_rx_cb(usbd_device *usbd_dev, uint8_t ep)
               break;
             }
             case STLINK_SWIM_WRITEMEM :
-              // niet zeker of dit juist is
-              //totalBytes = *((uint16_t*) &epBuffer[2]);
-              //memAddress = *((uint32_t*) &epBuffer[4]);
               stlinkStatus.totalBytes = ((uint16_t)epBuffer[2] << 8) + epBuffer[3];
               stlinkStatus.address = (uint32_t)epBuffer[7]+ ((uint32_t)epBuffer[6]<<8);
               if (stlinkStatus.totalBytes > 8) { // more bytes to follow
                 stlinkStatus.state = STLINK_STATE_WRITE;
-                stlinkStatus.curBytes = 8; // enfin, we gaan er toch van uit dat len==16 hier, en dus al 8 bytes gekregen om te schrijven
+                stlinkStatus.curBytes = 8; // maybe len-8 is safer, but len==16 always here
                 memcpy(swimBuffer,epBuffer+8,8);
               }
               else { // we have all bytes, so can initiate the WOTF transaction
@@ -326,9 +315,6 @@ static void stlink_data_rx_cb(usbd_device *usbd_dev, uint8_t ep)
               }
               break;
             case STLINK_SWIM_READMEM : 
-              // niet zeker of dit juist is
-              //totalBytes = *((uint16_t*) &epBuffer[2]);
-              //memAddress = *((uint32_t*) &epBuffer[4]);
               stlinkStatus.totalBytes = ((uint16_t)epBuffer[2] << 8) + epBuffer[3];
               stlinkStatus.address = (uint32_t)epBuffer[7]+ ((uint32_t)epBuffer[6]<<8);
               stlinkStatus.curBytes = 0;
