@@ -300,6 +300,7 @@ static uint8_t SWIM_HW_Out(uint8_t cmd, uint8_t bitlen, uint16_t retry_cnt)
 
 retry:
 
+  memset((void*) SWIM_DMA_IN_Buffer,0,24); // sds test
   SWIM_IN_TIMER_RISE_DMA_INIT(bitlen + 3, (uint32_t) SWIM_DMA_IN_Buffer);
 
   *ptr++ = SWIM_PULSE_0;
